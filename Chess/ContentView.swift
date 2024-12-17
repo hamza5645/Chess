@@ -364,13 +364,16 @@ struct BoardSquare: View {
     let piece: ChessPiece?
     let isSelected: Bool
     let isValidMove: Bool
+    let useBlueTheme: Bool
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
             ZStack {
                 Rectangle()
-                    .fill((row + col).isMultiple(of: 2) ? Color("BoardGreen") : Color("BoardWhite"))
+                    .fill((row + col).isMultiple(of: 2) ? 
+                        (useBlueTheme ? Color.blue.opacity(0.7) : Color("BoardGreen")) : 
+                        Color("BoardWhite"))
                     .border(isSelected ? Color.blue : (isValidMove ? Color.green : Color.clear), width: 3)
                 
                 if let piece = piece {
@@ -392,6 +395,7 @@ struct BoardSquare: View {
 
 struct ContentView: View {
     @StateObject private var game = ChessGame()
+    @State private var useBlueTheme = false
     
     var body: some View {
         VStack {
@@ -435,7 +439,8 @@ struct ContentView: View {
                                 col: col,
                                 piece: game.board[row][col],
                                 isSelected: position == game.selectedPiece,
-                                isValidMove: validMoves.contains(position)
+                                isValidMove: validMoves.contains(position),
+                                useBlueTheme: useBlueTheme
                             ) {
                                 handleSquareTap(row: row, col: col)
                             }
@@ -445,6 +450,17 @@ struct ContentView: View {
                 }
             }
             .border(Color.black, width: 2)
+            
+            Toggle(isOn: $useBlueTheme) {
+                HStack {
+                    Text("Theme:")
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(useBlueTheme ? Color("BoardGreen") : Color.blue.opacity(0.7))
+                        .frame(width: 20, height: 20)
+                }
+            }
+            .padding()
+            .tint(useBlueTheme ? Color("BoardGreen") : Color.blue.opacity(0.7))
         }
         .padding()
     }
