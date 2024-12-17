@@ -614,7 +614,9 @@ struct ContentView: View {
                     }
                 }
                 .padding()
-                
+
+                Spacer()
+
                 if game.isCheck {
                     Text("Check!")
                         .font(.headline)
@@ -652,7 +654,8 @@ struct ContentView: View {
                     }
                 }
                 .border(Color.black, width: 2)
-                
+                .padding(.top, 50)
+
                 VStack {
                     Toggle(isOn: $useBlueTheme) {
                         HStack {
@@ -664,6 +667,8 @@ struct ContentView: View {
                     }
                     .padding(.horizontal)
                     .tint(useBlueTheme ? Color("BoardGreen") : Color.blue.opacity(0.7))
+
+                    Spacer()
                     
                     Picker("Game Mode", selection: $game.gameMode) {
                         Text(GameMode.ai.rawValue).tag(GameMode.ai)
