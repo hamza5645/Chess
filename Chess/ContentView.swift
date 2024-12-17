@@ -62,6 +62,7 @@ class ChessGame: ObservableObject {
     @Published var isCheckmate: Bool = false
     @Published var gameOver: Bool = false
     @Published var gameMode: GameMode = .ai
+    @Published var lastMove: (from: Position, to: Position)? = nil
     private var isThinking = false
     
     // Piece values for capture priority
@@ -86,6 +87,7 @@ class ChessGame: ObservableObject {
         isCheckmate = false
         gameOver = false
         isThinking = false
+        lastMove = nil
         setupBoard()
     }
     
@@ -121,6 +123,9 @@ class ChessGame: ObservableObject {
             board[to.row][to.col] = originalPiece
             return
         }
+        
+        // Store the last move
+        lastMove = (from, to)
         
         // Check if opponent is in check or checkmate
         let oppositeColor = currentPlayer.opposite
@@ -493,6 +498,7 @@ struct BoardSquare: View {
     let isSelected: Bool
     let isValidMove: Bool
     let useBlueTheme: Bool
+    let isLastMove: Bool
     let action: () -> Void
     
     var body: some View {
@@ -502,6 +508,12 @@ struct BoardSquare: View {
                     .fill((row + col).isMultiple(of: 2) ? 
                         (useBlueTheme ? Color.blue.opacity(0.7) : Color("BoardGreen")) : 
                         Color("BoardWhite"))
+                
+                // Last move highlight
+                if isLastMove {
+                    Rectangle()
+                        .fill(Color.yellow.opacity(0.3))
+                }
                 
                 // Selection highlight
                 if isSelected {
@@ -566,6 +578,7 @@ struct ContentView: View {
                         ForEach(0..<8) { col in
                             let position = Position(row: row, col: col)
                             let validMoves = game.selectedPiece.map { game.getValidMoves(for: $0) } ?? []
+                            let isLastMove = game.lastMove.map { $0.from == position || $0.to == position } ?? false
                             
                             BoardSquare(
                                 row: row,
@@ -573,7 +586,8 @@ struct ContentView: View {
                                 piece: game.board[row][col],
                                 isSelected: position == game.selectedPiece,
                                 isValidMove: validMoves.contains(position),
-                                useBlueTheme: useBlueTheme
+                                useBlueTheme: useBlueTheme,
+                                isLastMove: isLastMove
                             ) {
                                 handleSquareTap(row: row, col: col)
                             }
