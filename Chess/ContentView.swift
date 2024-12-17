@@ -56,6 +56,17 @@ class ChessGame: ObservableObject {
     @Published var isCheck: Bool = false
     @Published var isCheckmate: Bool = false
     @Published var gameOver: Bool = false
+    private var isThinking = false
+    
+    // Piece values for capture priority
+    private let pieceValues: [PieceType: Int] = [
+        .pawn: 1,
+        .knight: 3,
+        .bishop: 3,
+        .rook: 5,
+        .queen: 9,
+        .king: 0
+    ]
     
     init() {
         setupBoard()
@@ -68,6 +79,7 @@ class ChessGame: ObservableObject {
         isCheck = false
         isCheckmate = false
         gameOver = false
+        isThinking = false
         setupBoard()
     }
     
@@ -117,6 +129,55 @@ class ChessGame: ObservableObject {
         
         currentPlayer = oppositeColor
         selectedPiece = nil
+        
+        // If it's black's turn and game isn't over, make AI move
+        if currentPlayer == .black && !gameOver {
+            makeAIMove()
+        }
+    }
+    
+    private func makeAIMove() {
+        isThinking = true
+        
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            // Get all possible moves for black pieces
+            var allMoves: [(from: Position, to: Position)] = []
+            
+            // First, try to find moves that get out of check
+            for row in 0..<8 {
+                for col in 0..<8 {
+                    if let piece = self.board[row][col], piece.color == .black {
+                        let from = Position(row: row, col: col)
+                        let moves = self.getValidMoves(for: from)
+                        
+                        for to in moves {
+                            // Try the move
+                            let originalPiece = self.board[to.row][to.col]
+                            self.board[to.row][to.col] = piece
+                            self.board[from.row][from.col] = nil
+                            
+                            // Check if this move gets us out of check
+                            if !self.isKingInCheck(color: .black) {
+                                allMoves.append((from, to))
+                            }
+                            
+                            // Undo the move
+                            self.board[from.row][from.col] = piece
+                            self.board[to.row][to.col] = originalPiece
+                        }
+                    }
+                }
+            }
+            
+            DispatchQueue.main.async {
+                if let selectedMove = allMoves.randomElement() {
+                    self.movePiece(from: selectedMove.from, to: selectedMove.to)
+                }
+                self.isThinking = false
+            }
+        }
     }
     
     func isValidMove(from: Position, to: Position) -> Bool {
