@@ -63,6 +63,7 @@ class ChessGame: ObservableObject {
     @Published var gameOver: Bool = false
     @Published var gameMode: GameMode = .ai
     @Published var lastMove: (from: Position, to: Position)? = nil
+    @Published var promotionPosition: Position? = nil
     private var isThinking = false
     
     // Piece values for capture priority
@@ -88,6 +89,7 @@ class ChessGame: ObservableObject {
         gameOver = false
         isThinking = false
         lastMove = nil
+        promotionPosition = nil
         setupBoard()
     }
     
@@ -124,6 +126,16 @@ class ChessGame: ObservableObject {
             return
         }
         
+        // Check for pawn promotion
+        if piece.type == .pawn && (to.row == 0 || to.row == 7) {
+            promotionPosition = to
+            return // Wait for promotion choice before continuing
+        }
+        
+        finishMove(from: from, to: to)
+    }
+    
+    private func finishMove(from: Position, to: Position) {
         // Store the last move
         lastMove = (from, to)
         
@@ -144,6 +156,21 @@ class ChessGame: ObservableObject {
         // Only make AI move if in AI mode and it's black's turn
         if gameMode == .ai && currentPlayer == .black && !gameOver {
             makeAIMove()
+        }
+    }
+    
+    func promotePawn(to pieceType: PieceType) {
+        guard let position = promotionPosition,
+              let pawn = board[position.row][position.col],
+              pawn.type == .pawn else { return }
+        
+        // Replace pawn with promoted piece
+        board[position.row][position.col] = ChessPiece(type: pieceType, color: pawn.color, hasMoved: true)
+        promotionPosition = nil
+        
+        // Continue with the move
+        if let lastMove = lastMove {
+            finishMove(from: lastMove.from, to: lastMove.to)
         }
     }
     
@@ -538,88 +565,128 @@ struct BoardSquare: View {
     }
 }
 
+struct PawnPromotionView: View {
+    let color: PieceColor
+    let onSelect: (PieceType) -> Void
+    
+    private let promotionPieces: [PieceType] = [.queen, .rook, .bishop, .knight]
+    
+    var body: some View {
+        HStack(spacing: 10) {
+            ForEach(promotionPieces, id: \.self) { pieceType in
+                Button {
+                    onSelect(pieceType)
+                } label: {
+                    Image("\(color == .white ? "White" : "Black")_\(pieceType)".capitalized)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 50, height: 50)
+                        .background(Color.white.opacity(0.8))
+                        .cornerRadius(8)
+                }
+            }
+        }
+        .padding()
+        .background(Color.black.opacity(0.7))
+        .cornerRadius(12)
+    }
+}
+
 struct ContentView: View {
     @StateObject private var game = ChessGame()
     @State private var useBlueTheme = false
     
     var body: some View {
-        VStack {
-            HStack {
-                Text("\(game.currentPlayer == .white ? "White" : "Black")'s Turn")
-                    .font(.title)
-                
-                Spacer()
-                
-                Button(action: {
-                    game.resetGame()
-                }) {
-                    Image(systemName: "arrow.counterclockwise.circle.fill")
+        ZStack {
+            VStack {
+                HStack {
+                    Text("\(game.currentPlayer == .white ? "White" : "Black")'s Turn")
                         .font(.title)
-                        .foregroundColor(.blue)
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        game.resetGame()
+                    }) {
+                        Image(systemName: "arrow.counterclockwise.circle.fill")
+                            .font(.title)
+                            .foregroundColor(.blue)
+                    }
                 }
-            }
-            .padding()
-            
-            if game.isCheck {
-                Text("Check!")
-                    .font(.headline)
-                    .foregroundColor(.red)
-            }
-            
-            if game.isCheckmate {
-                Text("\(game.currentPlayer.opposite == .white ? "White" : "Black") wins by checkmate!")
-                    .font(.headline)
-                    .foregroundColor(.green)
-            }
-            
-            VStack(spacing: 0) {
-                ForEach(0..<8) { row in
-                    HStack(spacing: 0) {
-                        ForEach(0..<8) { col in
-                            let position = Position(row: row, col: col)
-                            let validMoves = game.selectedPiece.map { game.getValidMoves(for: $0) } ?? []
-                            let isLastMove = game.lastMove.map { $0.from == position || $0.to == position } ?? false
-                            
-                            BoardSquare(
-                                row: row,
-                                col: col,
-                                piece: game.board[row][col],
-                                isSelected: position == game.selectedPiece,
-                                isValidMove: validMoves.contains(position),
-                                useBlueTheme: useBlueTheme,
-                                isLastMove: isLastMove
-                            ) {
-                                handleSquareTap(row: row, col: col)
+                .padding()
+                
+                if game.isCheck {
+                    Text("Check!")
+                        .font(.headline)
+                        .foregroundColor(.red)
+                }
+                
+                if game.isCheckmate {
+                    Text("\(game.currentPlayer.opposite == .white ? "White" : "Black") wins by checkmate!")
+                        .font(.headline)
+                        .foregroundColor(.green)
+                }
+                
+                VStack(spacing: 0) {
+                    ForEach(0..<8) { row in
+                        HStack(spacing: 0) {
+                            ForEach(0..<8) { col in
+                                let position = Position(row: row, col: col)
+                                let validMoves = game.selectedPiece.map { game.getValidMoves(for: $0) } ?? []
+                                let isLastMove = game.lastMove.map { $0.from == position || $0.to == position } ?? false
+                                
+                                BoardSquare(
+                                    row: row,
+                                    col: col,
+                                    piece: game.board[row][col],
+                                    isSelected: position == game.selectedPiece,
+                                    isValidMove: validMoves.contains(position),
+                                    useBlueTheme: useBlueTheme,
+                                    isLastMove: isLastMove
+                                ) {
+                                    handleSquareTap(row: row, col: col)
+                                }
+                                .frame(width: 50, height: 50)
                             }
-                            .frame(width: 50, height: 50)
                         }
                     }
                 }
-            }
-            .border(Color.black, width: 2)
-            
-            VStack {
-                Toggle(isOn: $useBlueTheme) {
-                    HStack {
-                        Text("Theme:")
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(useBlueTheme ? Color("BoardGreen") : Color.blue.opacity(0.7))
-                            .frame(width: 20, height: 20)
-                    }
-                }
-                .padding(.horizontal)
-                .tint(useBlueTheme ? Color("BoardGreen") : Color.blue.opacity(0.7))
+                .border(Color.black, width: 2)
                 
-                Picker("Game Mode", selection: $game.gameMode) {
-                    Text(GameMode.ai.rawValue).tag(GameMode.ai)
-                    Text(GameMode.local.rawValue).tag(GameMode.local)
+                VStack {
+                    Toggle(isOn: $useBlueTheme) {
+                        HStack {
+                            Text("Theme:")
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(useBlueTheme ? Color("BoardGreen") : Color.blue.opacity(0.7))
+                                .frame(width: 20, height: 20)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .tint(useBlueTheme ? Color("BoardGreen") : Color.blue.opacity(0.7))
+                    
+                    Picker("Game Mode", selection: $game.gameMode) {
+                        Text(GameMode.ai.rawValue).tag(GameMode.ai)
+                        Text(GameMode.local.rawValue).tag(GameMode.local)
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal)
                 }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
+                .padding(.vertical)
             }
-            .padding(.vertical)
+            .padding()
+            
+            // Pawn promotion overlay
+            if let position = game.promotionPosition,
+               let pawn = game.board[position.row][position.col] {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                
+                PawnPromotionView(color: pawn.color) { pieceType in
+                    game.promotePawn(to: pieceType)
+                }
+            }
         }
-        .padding()
     }
     
     private func handleSquareTap(row: Int, col: Int) {
