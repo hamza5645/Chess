@@ -61,6 +61,16 @@ class ChessGame: ObservableObject {
         setupBoard()
     }
     
+    func resetGame() {
+        board = Array(repeating: Array(repeating: nil, count: 8), count: 8)
+        currentPlayer = .white
+        selectedPiece = nil
+        isCheck = false
+        isCheckmate = false
+        gameOver = false
+        setupBoard()
+    }
+    
     private func setupBoard() {
         // Set up pawns
         for col in 0..<8 {
@@ -385,9 +395,21 @@ struct ContentView: View {
     
     var body: some View {
         VStack {
-            Text("\(game.currentPlayer == .white ? "White" : "Black")'s Turn")
-                .font(.title)
-                .padding()
+            HStack {
+                Text("\(game.currentPlayer == .white ? "White" : "Black")'s Turn")
+                    .font(.title)
+                
+                Spacer()
+                
+                Button(action: {
+                    game.resetGame()
+                }) {
+                    Image(systemName: "arrow.counterclockwise.circle.fill")
+                        .font(.title)
+                        .foregroundColor(.blue)
+                }
+            }
+            .padding()
             
             if game.isCheck {
                 Text("Check!")
