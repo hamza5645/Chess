@@ -50,8 +50,8 @@ struct ChessPiece: Identifiable {
 }
 
 enum GameMode: String {
-    case ai = "vs AI"
-    case local = "vs Friend"
+    case ai = "AI"
+    case local = "Local"
 }
 
 class ChessGame: ObservableObject {
