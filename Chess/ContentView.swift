@@ -49,6 +49,11 @@ struct ChessPiece: Identifiable {
     }
 }
 
+enum GameMode: String {
+    case ai = "vs AI"
+    case local = "vs Friend"
+}
+
 class ChessGame: ObservableObject {
     @Published var board: [[ChessPiece?]] = Array(repeating: Array(repeating: nil, count: 8), count: 8)
     @Published var currentPlayer: PieceColor = .white
@@ -56,6 +61,7 @@ class ChessGame: ObservableObject {
     @Published var isCheck: Bool = false
     @Published var isCheckmate: Bool = false
     @Published var gameOver: Bool = false
+    @Published var gameMode: GameMode = .ai
     private var isThinking = false
     
     // Piece values for capture priority
@@ -130,8 +136,8 @@ class ChessGame: ObservableObject {
         currentPlayer = oppositeColor
         selectedPiece = nil
         
-        // If it's black's turn and game isn't over, make AI move
-        if currentPlayer == .black && !gameOver {
+        // Only make AI move if in AI mode and it's black's turn
+        if gameMode == .ai && currentPlayer == .black && !gameOver {
             makeAIMove()
         }
     }
@@ -578,16 +584,26 @@ struct ContentView: View {
             }
             .border(Color.black, width: 2)
             
-            Toggle(isOn: $useBlueTheme) {
-                HStack {
-                    Text("Theme:")
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(useBlueTheme ? Color("BoardGreen") : Color.blue.opacity(0.7))
-                        .frame(width: 20, height: 20)
+            VStack {
+                Toggle(isOn: $useBlueTheme) {
+                    HStack {
+                        Text("Theme:")
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(useBlueTheme ? Color("BoardGreen") : Color.blue.opacity(0.7))
+                            .frame(width: 20, height: 20)
+                    }
                 }
+                .padding(.horizontal)
+                .tint(useBlueTheme ? Color("BoardGreen") : Color.blue.opacity(0.7))
+                
+                Picker("Game Mode", selection: $game.gameMode) {
+                    Text(GameMode.ai.rawValue).tag(GameMode.ai)
+                    Text(GameMode.local.rawValue).tag(GameMode.local)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
             }
-            .padding()
-            .tint(useBlueTheme ? Color("BoardGreen") : Color.blue.opacity(0.7))
+            .padding(.vertical)
         }
         .padding()
     }
