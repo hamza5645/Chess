@@ -21,17 +21,17 @@ struct ChessPiece: Identifiable {
     let color: PieceColor
     
     var imageName: String {
-        let colorPrefix = color == .white ? "white" : "black"
+        let colorPrefix = color == .white ? "White" : "Black"
         let typeName: String
         switch type {
-        case .pawn: typeName = "pawn"
-        case .rook: typeName = "rook"
-        case .knight: typeName = "knight"
-        case .bishop: typeName = "bishop"
-        case .queen: typeName = "queen"
-        case .king: typeName = "king"
+        case .pawn: typeName = "Pawn"
+        case .rook: typeName = "Rook"
+        case .knight: typeName = "Knight"
+        case .bishop: typeName = "Bishop"
+        case .queen: typeName = "Queen"
+        case .king: typeName = "King"
         }
-        return "\(colorPrefix).\(typeName)"
+        return "\(colorPrefix)_\(typeName)"
     }
 }
 
@@ -85,11 +85,10 @@ struct BoardSquare: View {
                     .border(isSelected ? Color.blue : Color.clear, width: 3)
                 
                 if let piece = piece {
-                    Image(systemName: "circle.fill")  // Placeholder for chess pieces
+                    Image(piece.imageName)
                         .resizable()
                         .scaledToFit()
-                        .padding(10)
-                        .foregroundColor(piece.color == .white ? .white : .black)
+                        .padding(5)
                 }
             }
         }
