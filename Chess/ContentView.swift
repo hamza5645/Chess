@@ -81,7 +81,7 @@ struct BoardSquare: View {
         Button(action: action) {
             ZStack {
                 Rectangle()
-                    .fill((row + col).isMultiple(of: 2) ? Color.white : Color(white: 0.7))
+                    .fill((row + col).isMultiple(of: 2) ? Color("BoardGreen") : Color("BoardWhite"))
                     .border(isSelected ? Color.blue : Color.clear, width: 3)
                 
                 if let piece = piece {
