@@ -142,30 +142,32 @@ class ChessGame: ObservableObject {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
             
-            // Get all possible moves for black pieces
+            // Create a copy of the board for AI calculations
+            var simulationBoard = self.board
             var allMoves: [(from: Position, to: Position)] = []
             
             // First, try to find moves that get out of check
             for row in 0..<8 {
                 for col in 0..<8 {
-                    if let piece = self.board[row][col], piece.color == .black {
+                    if let piece = simulationBoard[row][col], piece.color == .black {
                         let from = Position(row: row, col: col)
-                        let moves = self.getValidMoves(for: from)
+                        let moves = self.getValidMoves(for: from, in: simulationBoard)
                         
                         for to in moves {
-                            // Try the move
-                            let originalPiece = self.board[to.row][to.col]
-                            self.board[to.row][to.col] = piece
-                            self.board[from.row][from.col] = nil
+                            // Try the move on the simulation board
+                            let originalPiece = simulationBoard[to.row][to.col]
+                            simulationBoard[to.row][to.col] = piece
+                            simulationBoard[from.row][from.col] = nil
                             
-                            // Check if this move gets us out of check
-                            if !self.isKingInCheck(color: .black) {
+                            // Check if this move gets us out of check using the simulation board
+                            let kingPos = self.findKing(color: .black, in: simulationBoard)
+                            if let kingPos = kingPos, !self.isKingInCheck(color: .black, in: simulationBoard, kingPosition: kingPos) {
                                 allMoves.append((from, to))
                             }
                             
-                            // Undo the move
-                            self.board[from.row][from.col] = piece
-                            self.board[to.row][to.col] = originalPiece
+                            // Undo the move on simulation board
+                            simulationBoard[from.row][from.col] = piece
+                            simulationBoard[to.row][to.col] = originalPiece
                         }
                     }
                 }
@@ -178,6 +180,60 @@ class ChessGame: ObservableObject {
                 self.isThinking = false
             }
         }
+    }
+    
+    // Helper function to check king in check using a simulation board
+    private func isKingInCheck(color: PieceColor, in simulationBoard: [[ChessPiece?]], kingPosition: Position) -> Bool {
+        // Check if any opponent's piece can capture the king
+        for row in 0..<8 {
+            for col in 0..<8 {
+                if let piece = simulationBoard[row][col],
+                   piece.color != color {
+                    let moves = getValidMoves(for: Position(row: row, col: col), in: simulationBoard)
+                    if moves.contains(kingPosition) {
+                        return true
+                    }
+                }
+            }
+        }
+        return false
+    }
+    
+    // Helper function to find king in a simulation board
+    private func findKing(color: PieceColor, in simulationBoard: [[ChessPiece?]]) -> Position? {
+        for row in 0..<8 {
+            for col in 0..<8 {
+                if let piece = simulationBoard[row][col],
+                   piece.type == .king && piece.color == color {
+                    return Position(row: row, col: col)
+                }
+            }
+        }
+        return nil
+    }
+    
+    // Helper function to get valid moves using a simulation board
+    private func getValidMoves(for position: Position, in simulationBoard: [[ChessPiece?]]) -> [Position] {
+        guard let piece = simulationBoard[position.row][position.col] else { return [] }
+        
+        var moves: [Position] = []
+        
+        switch piece.type {
+        case .pawn:
+            moves = getPawnMoves(from: position, color: piece.color, in: simulationBoard)
+        case .rook:
+            moves = getRookMoves(from: position, in: simulationBoard)
+        case .knight:
+            moves = getKnightMoves(from: position, in: simulationBoard)
+        case .bishop:
+            moves = getBishopMoves(from: position, in: simulationBoard)
+        case .queen:
+            moves = getQueenMoves(from: position, in: simulationBoard)
+        case .king:
+            moves = getKingMoves(from: position, in: simulationBoard)
+        }
+        
+        return moves
     }
     
     func isValidMove(from: Position, to: Position) -> Bool {
@@ -213,7 +269,8 @@ class ChessGame: ObservableObject {
         return moves
     }
     
-    private func getPawnMoves(from pos: Position, color: PieceColor) -> [Position] {
+    private func getPawnMoves(from pos: Position, color: PieceColor, in simulationBoard: [[ChessPiece?]]? = nil) -> [Position] {
+        let board = simulationBoard ?? self.board
         var moves: [Position] = []
         let direction = color == .white ? -1 : 1
         let startRow = color == .white ? 6 : 1
@@ -245,7 +302,8 @@ class ChessGame: ObservableObject {
         return moves
     }
     
-    private func getRookMoves(from pos: Position) -> [Position] {
+    private func getRookMoves(from pos: Position, in simulationBoard: [[ChessPiece?]]? = nil) -> [Position] {
+        let board = simulationBoard ?? self.board
         var moves: [Position] = []
         let directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
         
@@ -272,7 +330,8 @@ class ChessGame: ObservableObject {
         return moves
     }
     
-    private func getKnightMoves(from pos: Position) -> [Position] {
+    private func getKnightMoves(from pos: Position, in simulationBoard: [[ChessPiece?]]? = nil) -> [Position] {
+        let board = simulationBoard ?? self.board
         let possibleMoves = [
             (-2, -1), (-2, 1), (-1, -2), (-1, 2),
             (1, -2), (1, 2), (2, -1), (2, 1)
@@ -293,7 +352,8 @@ class ChessGame: ObservableObject {
         }
     }
     
-    private func getBishopMoves(from pos: Position) -> [Position] {
+    private func getBishopMoves(from pos: Position, in simulationBoard: [[ChessPiece?]]? = nil) -> [Position] {
+        let board = simulationBoard ?? self.board
         var moves: [Position] = []
         let directions = [(1, 1), (1, -1), (-1, 1), (-1, -1)]
         
@@ -320,11 +380,12 @@ class ChessGame: ObservableObject {
         return moves
     }
     
-    private func getQueenMoves(from pos: Position) -> [Position] {
-        return getRookMoves(from: pos) + getBishopMoves(from: pos)
+    private func getQueenMoves(from pos: Position, in simulationBoard: [[ChessPiece?]]? = nil) -> [Position] {
+        return getRookMoves(from: pos, in: simulationBoard) + getBishopMoves(from: pos, in: simulationBoard)
     }
     
-    private func getKingMoves(from pos: Position) -> [Position] {
+    private func getKingMoves(from pos: Position, in simulationBoard: [[ChessPiece?]]? = nil) -> [Position] {
+        let board = simulationBoard ?? self.board
         let possibleMoves = [
             (-1, -1), (-1, 0), (-1, 1),
             (0, -1),           (0, 1),
