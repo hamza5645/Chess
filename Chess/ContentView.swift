@@ -374,7 +374,12 @@ struct BoardSquare: View {
                     .fill((row + col).isMultiple(of: 2) ? 
                         (useBlueTheme ? Color.blue.opacity(0.7) : Color("BoardGreen")) : 
                         Color("BoardWhite"))
-                    .border(isSelected ? Color.blue : (isValidMove ? Color.green : Color.clear), width: 3)
+                
+                // Selection highlight
+                if isSelected {
+                    Rectangle()
+                        .fill(Color.yellow.opacity(0.85))
+                }
                 
                 if let piece = piece {
                     Image(piece.imageName)
@@ -385,7 +390,7 @@ struct BoardSquare: View {
                 
                 if isValidMove && piece == nil {
                     Circle()
-                        .fill(Color.green.opacity(0.3))
+                        .fill(Color.black.opacity(0.85))
                         .padding(15)
                 }
             }
